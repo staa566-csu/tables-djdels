@@ -1,0 +1,76 @@
+---
+title: "Tables"
+author: "Delsie Johnson"
+format: html
+editor: visual
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE, message=FALSE)
+```
+
+## WNBA Playoffs Table
+
+**Data Source:** \"WNBA_playoffs.csv\" from https://stats.wnba.com/players/boxscores-traditional/. csv file included
+
+**What I want to convey:** I want to show some important game stats for each WNBA team over the course of the 2022 playoffs. These stats include points per game, turnovers per game, and 3 pointers attempted per game. This table can be a good visual for the user to see how each team did.
+
+**Functionality:** I allow the user to highlight each row which makes it easy to see which team they are looking at. There is also a column with graphs of points for each playoff game and the user can hover over the graph and see exactly how many points the team had for each game.
+
+**Formatting:** I put a header over the stats which makes the column names easier to read and understand. I also made each value rounded to one decimal place which is typical of sports stats reporting and makes the table easier to read for the user.
+
+## R Code
+
+```{r}
+# loading libraries
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(sparkline)
+sparkline(0)
+
+# reading in csv data file
+WNBA <- read.csv("WNBA_playoffs.csv", header=T)
+
+# organizing and formatting data
+wnba_team <- WNBA %>%
+  group_by(team, game_date, w_l) %>% 
+  summarise(pts = sum(pts), pa_3 = sum(pa_3), tov = sum(tov))
+
+# creating data frame to use 
+playoffs_table <- wnba_team %>% 
+  group_by(team) %>% 
+  summarise(pts = mean(pts), pa_3 = mean(pa_3), tov = mean(tov)) %>%
+  mutate(plt_ppg=NA) %>%
+  as.data.frame()
+
+# creating vector for ppg plots
+for(t in playoffs_table$team){
+  team_ppg <- wnba_team %>%
+    filter(team==t) %>%
+    arrange(game_date) %>%
+    pull(pts)
+  playoffs_table[which(playoffs_table$team==t),"plt_ppg"] <- spk_chr(team_ppg)
+}
+
+# making table
+t_playoffs <- playoffs_table %>%
+  select(team, pts, pa_3, tov, plt_ppg) %>%
+  kbl(escape = FALSE,
+      col.names = c("Team",
+                    "Points",
+                    "3 Pointers Attempted",
+                    "Turnovers",
+                    "Points"),
+      align = c("l", "r", "r", "r", "r"),
+      digits = 1) %>%
+  add_header_above(c(" ", "Average Stats per game" = 4)) %>%
+  kable_styling(font_size=18)
+```
+
+## Display Table in HTML:
+
+```{r display}
+t_playoffs %>%
+  kable_paper(lightable_options = "hover")
+```
